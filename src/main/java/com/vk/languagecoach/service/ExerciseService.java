@@ -36,14 +36,18 @@ public class ExerciseService {
         OpenAIClient client = exerciseRequest.getProvider() == AIProvider.GROQ ? groqClient : openAIClient;
         String model = exerciseRequest.getProvider() == AIProvider.GROQ ? groqModel : openAiModel;
 
-        String baseForm = exerciseRequest.isIncludeBaseForm() ? " (base form - replace it with corresponding word(s) - just a word, NO EXPLANATION(S) HERE). Include base form ONLY if it makes sense to the exercise, it CAN NOT be the correct form (answer to the exercise). In case if it's not applicable, do not include it." : "";
+        String baseForm = exerciseRequest.isIncludeBaseForm() ? """
+                (infinitive form or additional context here - it CAN NOT be the correct word (answer to the exercise),
+                if it is a correct answer to the exercise,
+                ignore it - do not add anything in parentheses after the blanks (___) in the exercise text.")
+                """ : "";
         String prompt = """
                 I want to practice my %s language skills. Please generate exercises/phrases with empty spaces (___) to fill in.
                 Exercises topic is: %s.
                 The exercises should be suitable for a %s level learner. Example of the exercise:
                 "I like to ___%s in the morning."
                 The phrase/sentence may contain multiple blanks (especially for higher difficulty levels). For example:
-                "I like to ___%s in the morning and ___%s in the evening."
+                "I like to ___ in the morning and ___ in the evening."
                 Use 'position' to indicate the answer for each blank, starting from zero.
                 Make sure that exercises are relevant to the topic and difficulty level and the exercises are in the %s language.
                 If there are multiple correct answers, provide them all - with the same 'exerciseId' and 'position' value.
@@ -52,12 +56,18 @@ public class ExerciseService {
                 Also, add explanation for each answer in %s language.
                 Make sure 'exerciseId' is unique for each exercise, starts from 0, and consistent across exercises/answers/hints.
                 Be creative and generate a variety of exercises.
+                MAKE SURE to NOT include the correct answer in the exercise text itself, especially after the blanks (___).
                 Total exercises should be %d.
+                
+                Example of the exercise texts:
+                - with base form: Ayer ___ (ir, yo) al cine. - only when it's not obvious who the subject is.
+                - with base form: Ayer yo ___(ir) al cine. - no need to include the subject if it's obvious.
+                - without base form: Ayer yo ___ al cine.
                 """.formatted(
                 exerciseRequest.getExerciseLanguage(),
                 exerciseRequest.getTopic(),
                 exerciseRequest.getDifficulty(),
-                baseForm, baseForm, baseForm,
+                baseForm,
                 exerciseRequest.getExerciseLanguage(),
                 exerciseRequest.isIncludeBaseForm() ? "Include base form (in parentheses) in the exercises." : "Do not include base form (in parentheses) in the exercises.",
                 exerciseRequest.isIncludeHints() ?
