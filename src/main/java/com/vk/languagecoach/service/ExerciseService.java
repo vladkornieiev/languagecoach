@@ -33,6 +33,7 @@ public class ExerciseService {
     }
 
     public ExercisesResponse generateExercises(ExerciseRequest exerciseRequest) {
+        log.info("Generating exercises for request: {}", exerciseRequest);
         OpenAIClient client = exerciseRequest.getProvider() == AIProvider.GROQ ? groqClient : openAIClient;
         String model = exerciseRequest.getProvider() == AIProvider.GROQ ? groqModel : openAiModel;
 
@@ -50,7 +51,9 @@ public class ExerciseService {
                 "I like to ___ in the morning and ___ in the evening."
                 Use 'position' to indicate the answer for each blank, starting from zero.
                 Make sure that exercises are relevant to the topic and difficulty level and the exercises are in the %s language.
-                If there are multiple correct answers, provide them all - with the same 'exerciseId' and 'position' value.
+                If there are multiple correct answers, provide them all - with the same 'exerciseId' and 'position' value. 
+                For example, in some languages, the verb conjugation may vary based on the subject, so provide all possible answers for the same exercise.
+                Example: Ти вчора ___ (читати) книжку? - Correct answers are "читав", "читала" (for different subjects). 
                 %s
                 %s
                 Also, add explanation for each answer in %s language.
@@ -69,9 +72,9 @@ public class ExerciseService {
                 exerciseRequest.getDifficulty(),
                 baseForm,
                 exerciseRequest.getExerciseLanguage(),
-                exerciseRequest.isIncludeBaseForm() ? "Include base form (in parentheses) in the exercises." : "Do not include base form (in parentheses) in the exercises.",
+                exerciseRequest.isIncludeBaseForm() ? "Include infinitive form or additional context (in parentheses) in the exercises." : "Do not include infinitive form or additional context (in parentheses) in the exercises.",
                 exerciseRequest.isIncludeHints() ?
-                        "Provide hints with different level of evidence (use 'evidence' field - values from 0 to 100 where 0 is less evident and 100 is completely evident) for each answer. There may be multiple hints for each answer. Make sure hints are in %s language.".formatted(exerciseRequest.getUserLanguage()) :
+                        "Provide hints with different level of evidence (use 'evidence' field - values from 0 to 100 where 0 is less evident and 100 is completely evident) for each answer. There may be multiple hints for each answer. Make sure hints are in %s language. Make sure to NOT provide final correct answer in the hint".formatted(exerciseRequest.getUserLanguage()) :
                         "Do not provide hints for the answers.",
                 exerciseRequest.getUserLanguage(),
                 exerciseRequest.getTotal()
@@ -93,7 +96,8 @@ public class ExerciseService {
         long completionTokens = usage.completionTokens();
         long promptTokens = usage.promptTokens();
 
-        log.info("Generated exercises using model: {}, completion tokens: {}, prompt tokens: {}", model, completionTokens, promptTokens);
+        log.info("Generated exercises using model: {}, completion tokens: {}, prompt tokens: {}, request: {}",
+                model, completionTokens, promptTokens, exerciseRequest);
 
         ExercisesResponse exercisesResponse = exercisesResponseStructuredChatCompletion
                 .choices()

@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.3'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.github.node-gradle.node' version '7.0.2'
 }
 
 group = 'com.vk'
@@ -41,3 +42,25 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+node {
+    version = '22.7.0'
+    npmVersion = '10.8.2'
+    download = true
+    workDir = file("${project.buildDir}/nodejs")
+    npmWorkDir = file("${project.buildDir}/npm")
+    nodeProjectDir = file("${project.projectDir}/ui")
+}
+
+tasks.register('buildReact', NpmTask) {
+    dependsOn tasks.named('npmInstall')
+    args = ['run', 'build']
+}
+
+tasks.register('copyReactBuild', Copy) {
+    dependsOn tasks.named('buildReact')
+    from 'ui/dist'
+    into 'src/main/resources/static'
+}
+
+processResources.dependsOn copyReactBuild
