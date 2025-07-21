@@ -23,7 +23,7 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({text, c
 };
 
 const defaultForm: ExerciseRequest = {
-    provider: 'GROQ',
+    provider: 'OPENAI',
     exerciseLanguage: 'Spanish',
     userLanguage: 'English',
     topic: 'Past and Future Tenses',
@@ -251,11 +251,12 @@ function App() {
             const totalTime = timings.reduce((a, b) => a + (b || 0), 0) + (questionStart ? (Date.now() - questionStart) / 1000 : 0);
             const avgTime = timings.length ? totalTime / timings.length : 0;
 
-            // Calculate final score
-            const answerMap: Record<number, Record<number, string>> = {};
+            // Calculate final score - handle multiple correct answers per position
+            const answerMap: Record<number, Record<number, string[]>> = {};
             answers.forEach((a: any) => {
                 if (!answerMap[a.exerciseId]) answerMap[a.exerciseId] = {};
-                answerMap[a.exerciseId][a.position] = a.answer.trim().toLowerCase();
+                if (!answerMap[a.exerciseId][a.position]) answerMap[a.exerciseId][a.position] = [];
+                answerMap[a.exerciseId][a.position].push(a.answer.trim().toLowerCase());
             });
             const score = userAnswers.reduce((acc, ansArr, idx) => {
                 const ex = exercises[idx];
@@ -263,7 +264,7 @@ function App() {
                 const exAnswers = answerMap[ex.exerciseId] || {};
                 let correct = 0;
                 ansArr.forEach((ans, pos) => {
-                    if (ans && exAnswers[pos] && ans.trim().toLowerCase() === exAnswers[pos]) {
+                    if (ans && exAnswers[pos] && exAnswers[pos].includes(ans.trim().toLowerCase())) {
                         correct++;
                     }
                 });
@@ -372,10 +373,11 @@ function App() {
     let avgTime = currentGameData.avgTime || 0;
 
     if (!viewingHistoricalGame && step === 'Results' && exercises.length > 0) {
-        const answerMap: Record<number, Record<number, string>> = {};
+        const answerMap: Record<number, Record<number, string[]>> = {};
         answers.forEach((a: any) => {
             if (!answerMap[a.exerciseId]) answerMap[a.exerciseId] = {};
-            answerMap[a.exerciseId][a.position] = a.answer.trim().toLowerCase();
+            if (!answerMap[a.exerciseId][a.position]) answerMap[a.exerciseId][a.position] = [];
+            answerMap[a.exerciseId][a.position].push(a.answer.trim().toLowerCase());
         });
         score = userAnswers.reduce((acc, ansArr, idx) => {
             const ex = exercises[idx];
@@ -383,7 +385,7 @@ function App() {
             const exAnswers = answerMap[ex.exerciseId] || {};
             let correct = 0;
             ansArr.forEach((ans, pos) => {
-                if (ans && exAnswers[pos] && ans.trim().toLowerCase() === exAnswers[pos]) {
+                if (ans && exAnswers[pos] && exAnswers[pos].includes(ans.trim().toLowerCase())) {
                     correct++;
                 }
             });
@@ -766,8 +768,17 @@ function App() {
 
                         <div className="result-list">
                             {currentGameData.exercises?.map((ex: any, exIdx: number) => {
-                                const exAnswers = currentGameData.answers?.filter((a: any) => a.exerciseId === ex.exerciseId).sort((a: any, b: any) => a.position - b.position) || [];
+                                // Group answers by position to handle multiple correct answers
+                                const allExAnswers = currentGameData.answers?.filter((a: any) => a.exerciseId === ex.exerciseId) || [];
+                                const answersByPosition: Record<number, any[]> = {};
+                                allExAnswers.forEach((a: any) => {
+                                    if (!answersByPosition[a.position]) answersByPosition[a.position] = [];
+                                    answersByPosition[a.position].push(a);
+                                });
+                                
                                 const userAnsArr = currentGameData.userAnswers?.[exIdx] || [];
+                                const positions = Object.keys(answersByPosition).map(Number).sort();
+                                
                                 return (
                                     <div key={ex.exerciseId} className="result-exercise" style={{
                                         marginBottom: 16,
@@ -783,16 +794,25 @@ function App() {
                                             color: '#f1f5f9'
                                         }}>{ex.text}</div>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                                            {exAnswers.map((ans: any, posIdx: number) => {
-                                                const userAns = userAnsArr[posIdx] || '';
-                                                const isCorrect = userAns.trim().toLowerCase() === ans.answer.trim().toLowerCase();
+                                            {positions.map((position: number) => {
+                                                const userAns = userAnsArr[position] || '';
+                                                const possibleAnswers = answersByPosition[position];
+                                                const isCorrect = possibleAnswers.some((ans: any) =>
+                                                    userAns.trim().toLowerCase() === ans.answer.trim().toLowerCase()
+                                                );
+
+                                                // Get all unique correct answers
+                                                const correctAnswers = [...new Set(possibleAnswers.map((a: any) => a.answer))];
+
+                                                let explanationsToShow: string[] = [...new Set(possibleAnswers.map((a: any) => a.explanation))];
+
                                                 return (
-                                                    <div key={posIdx}>
+                                                    <div key={position}>
                                                         <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
                                                             <span style={{
                                                                 minWidth: 60,
                                                                 fontWeight: 500
-                                                            }}>Blank {posIdx + 1}:</span>
+                                                            }}>Blank {position + 1}:</span>
                                                             <span style={{
                                                                 color: isCorrect ? '#4caf50' : '#f44336',
                                                                 fontWeight: 600,
@@ -806,18 +826,29 @@ function App() {
                                                             }}>{userAns ||
                                                                 <span style={{color: '#888'}}>No answer</span>}</span>
                                                             <span style={{color: '#888', fontSize: 13}}>
-                                {isCorrect ? 'Correct' : 'Correct: '}
-                                                                {!isCorrect && (
-                                                                    <span style={{
-                                                                        color: '#fff',
-                                                                        fontWeight: 500
-                                                                    }}>{ans.answer}</span>
+                                                                {isCorrect ? 'Correct' : 'Correct: '}
+                                                                {/* Always show all answers if multiple, or single answer if user was wrong */}
+                                                                {(correctAnswers.length > 1 || !isCorrect) && (
+                                                                    <>
+                                                                        {isCorrect && correctAnswers.length > 1 && <span
+                                                                            style={{color: '#888'}}> (all valid: </span>}
+                                                                        <span style={{color: '#fff', fontWeight: 500}}>
+                                                                            {correctAnswers.join(' / ')}
+                                                                        </span>
+                                                                        {isCorrect && correctAnswers.length > 1 &&
+                                                                            <span style={{color: '#888'}}>)</span>}
+                                                                    </>
                                                                 )}
-                              </span>
+                                                            </span>
                                                         </div>
-                                                        {ans.explanation && (
+                                                        {explanationsToShow.length > 0 && (
                                                             <div style={{marginTop: 8, fontSize: 14, color: '#ffe082'}}>
-                                                                {ans.explanation}
+                                                                {explanationsToShow.map((explanation, idx) => (
+                                                                    <div key={idx}
+                                                                         style={{marginBottom: idx < explanationsToShow.length - 1 ? 8 : 0}}>
+                                                                        {explanation}
+                                                                    </div>
+                                                                ))}
                                                             </div>
                                                         )}
                                                     </div>
