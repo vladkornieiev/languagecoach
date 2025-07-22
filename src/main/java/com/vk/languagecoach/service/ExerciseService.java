@@ -8,7 +8,7 @@ import com.openai.models.chat.completions.StructuredChatCompletion;
 import com.openai.models.chat.completions.StructuredChatCompletionCreateParams;
 import com.openai.models.completions.CompletionUsage;
 import com.vk.languagecoach.dto.request.ExerciseRequest;
-import com.vk.languagecoach.dto.response.ExercisesResponse;
+import com.vk.languagecoach.model.Exercises;
 import com.vk.languagecoach.service.ai.AIServiceProvider;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +37,7 @@ public class ExerciseService {
         this.promptTemplate = mustacheFactory.compile("prompts/exercises.mustache");
     }
 
-    public ExercisesResponse generateExercises(ExerciseRequest exerciseRequest) {
+    public Exercises generateExercises(ExerciseRequest exerciseRequest) {
         log.info("Generating exercises for request: {}", exerciseRequest);
 
         Map<String, Object> params = new HashMap<>();
@@ -53,15 +53,15 @@ public class ExerciseService {
         promptTemplate.execute(writer, params);
 
         String model = aiServiceProvider.getModel(exerciseRequest.getProvider(), TEXT);
-        StructuredChatCompletionCreateParams<ExercisesResponse> createParams = ChatCompletionCreateParams.builder()
+        StructuredChatCompletionCreateParams<Exercises> createParams = ChatCompletionCreateParams.builder()
                 .addUserMessage(writer.toString())
-                .responseFormat(ExercisesResponse.class)
+                .responseFormat(Exercises.class)
                 .temperature(1.75)
                 .topP(0.95)
                 .model(model)
                 .build();
 
-        StructuredChatCompletion<ExercisesResponse> exercisesResponseStructuredChatCompletion =
+        StructuredChatCompletion<Exercises> exercisesResponseStructuredChatCompletion =
                 aiServiceProvider.getClient(exerciseRequest.getProvider())
                         .chat()
                         .completions()
