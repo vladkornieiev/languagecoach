@@ -9,14 +9,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class OpenAIService implements AIService {
 
-    @Value("${openai.api-key}")
-    private String openAiApiKey;
-
     private final OpenAIClient client;
 
-    public OpenAIService() {
+    public OpenAIService(@Value("${openai.api-key}") String apiKey) {
         this.client = OpenAIOkHttpClient.builder()
-                .apiKey(openAiApiKey)
+                .apiKey(apiKey)
                 .build();
     }
 

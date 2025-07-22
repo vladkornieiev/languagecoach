@@ -9,17 +9,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class GroqService implements AIService {
 
-    @Value("${groq.api-key}")
-    private String groqApiKey;
-    @Value("${groq.base-url}")
-    private String groqBaseUrl;
-
     private final OpenAIClient client;
 
-    public GroqService() {
+    public GroqService(@Value("${groq.api-key}") String apiKey, @Value("${groq.base-url}") String baseUrl) {
         this.client = OpenAIOkHttpClient.builder()
-                .apiKey(groqApiKey)
-                .baseUrl(groqBaseUrl)
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
                 .build();
     }
 

@@ -24,9 +24,9 @@ public class SpeechToTextController {
     private final SpeechToTextService speechToTextService;
 
     @PostMapping
-    public ResponseEntity<SpeechToTextResponse> uploadAudio(@RequestParam("file") MultipartFile file,
-                                                            @Param("language") String language,
-                                                            @Param("prodiver") String provider) throws IOException {
+    public ResponseEntity<SpeechToTextResponse> speechToText(@RequestParam("file") MultipartFile file,
+                                                             @Param("language") String language,
+                                                             @Param("prodiver") String provider) throws IOException {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("File must not be empty");
         }
