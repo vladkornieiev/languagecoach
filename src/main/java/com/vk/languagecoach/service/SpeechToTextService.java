@@ -1,67 +1,66 @@
 package com.vk.languagecoach.service;
 
-import com.openai.client.OpenAIClient;
 import com.openai.models.audio.transcriptions.Transcription;
 import com.openai.models.audio.transcriptions.TranscriptionCreateParams;
 import com.vk.languagecoach.dto.AIProvider;
 import com.vk.languagecoach.dto.response.SpeechToTextResponse;
-import com.vk.languagecoach.service.ai.AIService;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
+import com.vk.languagecoach.service.ai.AIServiceProvider;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.vk.languagecoach.dto.AIProvider.GROQ;
+import static com.vk.languagecoach.dto.AIModelType.SPEECH_TO_TEXT;
 
 @Service
+@Slf4j
 public class SpeechToTextService {
 
-    private final Map<AIProvider, AIService> aiClients;
-    private final Map<AIProvider, String> models = new HashMap<>();
 
-    public SpeechToTextService(List<AIService> aiServices,
-                               @Value("${groq.speech-to-text.model}") String groqModel,
-                               @Value("${openai.speech-to-text.model}") String openAiModel) {
-        this.aiClients = aiServices.stream()
-                .collect(Collectors.toMap(AIService::getName, Function.identity()));
-        this.models.put(AIProvider.GROQ, groqModel);
-        this.models.put(AIProvider.OPENAI, openAiModel);
+    private final AIServiceProvider aiServiceProvider;
+
+    public SpeechToTextService(AIServiceProvider aiServiceProvider) {
+        this.aiServiceProvider = aiServiceProvider;
+    }
+
+    public List<SpeechToTextResponse> speechToText(MultipartFile[] files, String language, AIProvider provider) throws IOException {
+        return Arrays.stream(files)
+                .map(file -> {
+                    try {
+                        return speechToText(file, language, provider);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Error processing file: " + file.getOriginalFilename(), e);
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     public SpeechToTextResponse speechToText(MultipartFile file, String language, AIProvider provider) throws IOException {
+        log.info("Processing file: {}, language: {}, provider: {}", file.getOriginalFilename(), language, provider);
         File tempFile = File.createTempFile(UUID.randomUUID().toString(), getFileExtension(file));
         try {
             file.transferTo(tempFile.toPath());
 
-            AIService aiService = aiClients.get(provider);
-            if (aiService == null) {
-                throw new IllegalArgumentException("Unsupported AI provider: " + provider);
-            }
-
-            String model = models.get(provider);
-            if (model == null) {
-                throw new IllegalArgumentException("Model not configured for provider: " + provider);
-            }
-
             TranscriptionCreateParams createParams = TranscriptionCreateParams.builder()
                     .file(tempFile.toPath())
-                    .model(model)
+                    .model(aiServiceProvider.getModel(provider, SPEECH_TO_TEXT))
                     .build();
-            Transcription transcription = aiService.getClient()
+            Transcription transcription = aiServiceProvider.getClient(provider)
                     .audio().transcriptions().create(createParams).asTranscription();
+
+            log.info("Processed file: {}, language: {}, provider: {}, transcription: {}",
+                    file.getOriginalFilename(), language, provider, transcription.text());
 
             return SpeechToTextResponse.builder()
                     .language(language)
                     .text(transcription.text())
+                    .fileName(file.getOriginalFilename())
                     .build();
         } finally {
             if (tempFile.exists()) {
