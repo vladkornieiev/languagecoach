@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 import static com.vk.languagecoach.dto.AIProvider.fromString;
 
@@ -24,14 +25,14 @@ public class SpeechToTextController {
     private final SpeechToTextService speechToTextService;
 
     @PostMapping
-    public ResponseEntity<SpeechToTextResponse> speechToText(@RequestParam("file") MultipartFile file,
-                                                             @Param("language") String language,
-                                                             @Param("prodiver") String provider) throws IOException {
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("File must not be empty");
+    public ResponseEntity<List<SpeechToTextResponse>> speechToText(@RequestParam("files") MultipartFile[] files,
+                                                                   @Param("language") String language,
+                                                                   @Param("prodiver") String provider) throws IOException {
+        if (files == null || files.length == 0) {
+            throw new IllegalArgumentException("Files must not be empty");
         }
 
-        SpeechToTextResponse transcription = speechToTextService.speechToText(file, language, fromString(provider));
+        List<SpeechToTextResponse> transcription = speechToTextService.speechToText(files, language, fromString(provider));
         return ResponseEntity.ok(transcription);
     }
 }
