@@ -7,10 +7,10 @@ groq:
   speech-to-text:
     model: ${GROQ_SPEECH_TO_TEXT_MODEL:whisper-large-v3-turbo}
   text:
-    model: ${GROQ_TEXT_MODEL:moonshotai/kimi-k2-instruct}
+    model: ${GROQ_TEXT_MODEL:meta-llama/llama-4-scout-17b-16e-instruct}
 openai:
   api-key: ${OPENAI_API_KEY:}
   speech-to-text:
     model: ${OPENAI_SPEECH_TO_TEXT_MODEL:gpt-4o-mini-transcribe}
   text:
-    model: ${OPENAI_TEXT_MODEL:gpt-4o}
+    model: ${OPENAI_TEXT_MODEL:gpt-4.1}
