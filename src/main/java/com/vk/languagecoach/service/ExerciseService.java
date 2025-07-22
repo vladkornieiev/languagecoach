@@ -1,51 +1,29 @@
 package com.vk.languagecoach.service;
 
-import com.openai.client.OpenAIClient;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.StructuredChatCompletion;
 import com.openai.models.chat.completions.StructuredChatCompletionCreateParams;
 import com.openai.models.completions.CompletionUsage;
-import com.vk.languagecoach.dto.AIProvider;
 import com.vk.languagecoach.dto.request.ExerciseRequest;
 import com.vk.languagecoach.dto.response.ExercisesResponse;
-import com.vk.languagecoach.service.ai.AIService;
+import com.vk.languagecoach.service.ai.AIServiceProvider;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import static com.vk.languagecoach.dto.AIModelType.TEXT;
 
 @Service
 @Slf4j
 public class ExerciseService {
 
-    private final Map<AIProvider, AIService> aiClients;
-    private final Map<AIProvider, String> models = new HashMap<>();
+    private final AIServiceProvider aiServiceProvider;
 
-    public ExerciseService(List<AIService> aiServices,
-                           @Value("${groq.text.model}") String groqModel,
-                           @Value("${openai.text.model}") String openAiModel) {
-        this.aiClients = aiServices.stream()
-                .collect(Collectors.toMap(AIService::getName, Function.identity()));
-        this.models.put(AIProvider.GROQ, groqModel);
-        this.models.put(AIProvider.OPENAI, openAiModel);
+    public ExerciseService(AIServiceProvider aiServiceProvider) {
+        this.aiServiceProvider = aiServiceProvider;
     }
 
     public ExercisesResponse generateExercises(ExerciseRequest exerciseRequest) {
         log.info("Generating exercises for request: {}", exerciseRequest);
-        AIService aiService = aiClients.get(exerciseRequest.getProvider());
-        if (aiService == null) {
-            throw new IllegalArgumentException("Unsupported AI provider: " + exerciseRequest.getProvider());
-        }
-
-        String model = models.get(exerciseRequest.getProvider());
-        if (model == null) {
-            throw new IllegalArgumentException("Model not configured for provider: " + exerciseRequest.getProvider());
-        }
 
         String baseForm = exerciseRequest.isIncludeBaseForm() ? """
                 (infinitive form or additional context here - it CAN NOT be the correct word (answer to the exercise),
@@ -89,6 +67,7 @@ public class ExerciseService {
                 exerciseRequest.getUserLanguage(),
                 exerciseRequest.getTotal()
         );
+        String model = aiServiceProvider.getModel(exerciseRequest.getProvider(), TEXT);
         StructuredChatCompletionCreateParams<ExercisesResponse> createParams = ChatCompletionCreateParams.builder()
                 .addUserMessage(prompt)
                 .responseFormat(ExercisesResponse.class)
@@ -98,10 +77,10 @@ public class ExerciseService {
                 .build();
 
         StructuredChatCompletion<ExercisesResponse> exercisesResponseStructuredChatCompletion =
-                aiService.getClient()
-                .chat()
-                .completions()
-                .create(createParams);
+                aiServiceProvider.getClient(exerciseRequest.getProvider())
+                        .chat()
+                        .completions()
+                        .create(createParams);
 
         CompletionUsage usage = exercisesResponseStructuredChatCompletion.rawChatCompletion().usage().get();
         long completionTokens = usage.completionTokens();
