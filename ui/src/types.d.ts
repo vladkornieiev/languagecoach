@@ -24,4 +24,5 @@ interface GameRecord {
     score: number;
     totalTime: number;
     avgTime: number;
+    totalBlanks?: number;
 } 
