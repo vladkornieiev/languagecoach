@@ -271,6 +271,12 @@ function App() {
                 return acc + correct;
             }, 0);
 
+            // Calculate total blanks across all exercises
+            const totalBlanks = exercises.reduce((total, ex) => {
+                const blankCount = (ex.text.match(/___/g) || []).length;
+                return total + blankCount;
+            }, 0);
+
             const gameData = {
                 formData: form,
                 exercises,
@@ -281,6 +287,7 @@ function App() {
                 score,
                 totalTime,
                 avgTime,
+                totalBlanks,
             };
             saveGameToHistory(gameData);
             setGameHistory(getGameHistory());
@@ -366,11 +373,19 @@ function App() {
         score: 0,
         totalTime: 0,
         avgTime: 0,
+        totalBlanks: 0,
     };
 
     let score = currentGameData.score || 0;
     let totalTime = currentGameData.totalTime || 0;
     let avgTime = currentGameData.avgTime || 0;
+
+    // Calculate total blanks for current or historical game
+    const gameExercises = currentGameData.exercises || exercises;
+    const totalBlanks = currentGameData.totalBlanks || gameExercises.reduce((total, ex) => {
+        const blankCount = (ex.text.match(/___/g) || []).length;
+        return total + blankCount;
+    }, 0);
 
     if (!viewingHistoricalGame && step === 'Results' && exercises.length > 0) {
         const answerMap: Record<number, Record<number, string[]>> = {};
@@ -466,7 +481,7 @@ function App() {
                                     Topic: {game.formData.topic || 'General'}
                                 </div>
                                 <div className="history-item-score">
-                                    Score: {game.score}/{game.answers.length}
+                                    Score: {game.score}/{game.totalBlanks || game.exercises.reduce((total, ex) => total + (ex.text.match(/___/g) || []).length, 0)}
                                 </div>
                                 <div className="history-item-date">
                                     {new Date(game.timestamp).toLocaleDateString()}
@@ -743,7 +758,7 @@ function App() {
                         {/* Main Score and Time Stats */}
                         <div className="results-summary">
                             <div className="stat-card">
-                                <div className="stat-value">{score} / {currentGameData.answers?.length || 0}</div>
+                                <div className="stat-value">{score} / {totalBlanks}</div>
                                 <div className="stat-label">Score</div>
                             </div>
                             <div className="stat-card">

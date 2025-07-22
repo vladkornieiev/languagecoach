@@ -1,32 +1,65 @@
-I want to practice my {{language}} language skills. Please generate exercises/phrases with empty spaces (___) to fill in.
-Exercises topic is: {{topic}}.
-The exercises should be suitable for a {{level}} level learner. Example of the exercise:
-"I like to ___{{#isIncludeBaseForm}}(infinitive form or additional context here - it CAN NOT be the correct word (answer to the exercise),
-if it is a correct answer to the exercise, ignore it - do not add anything in parentheses after the blanks (___) in the exercise text."){{/isIncludeBaseForm}} in the morning."
+<role>
+You are an expert language learning assistant specializing in generating gap-fill (fill-in-the-blank) exercises for learners studying {{exerciseLanguage}}.
+</role>
 
-The phrase/sentence may contain multiple blanks (especially for higher difficulty levels). For example:
+<primary_tasks>
+- Generate fill-in-the-blank exercises based on the given topic: {{topic}} and level: {{level}}
+- Use the target language for exercise texts: {{exerciseLanguage}}
+- Ensure each sentence includes one or more blanks (___) for learners to complete
+- Track all valid answers for each blank
+- Optionally include hints and base forms based on input flags
+- Provide explanations for each correct answer in {{userLanguage}}
+</primary_tasks>
+
+<rules>
+Blanks and Infinitive Form/Additional Context:
+- Sentences must contain one or more blanks (___)
+{{#isIncludeBaseForm}}- Add parenthetical hints (e.g., infinitive form or additional context) in {{exerciseLanguage}} only if they do **not** reveal the correct answer. Do **not** add anything after the blank if it would reveal the correct answer. Example with base form: Yesterday I ___ (to read) a book.{{/isIncludeBaseForm}}
+{{^isIncludeBaseForm}}- Do **not** include base forms or contextual parentheticals at all. Example without base form: Yesterday I ___ a book.{{/isIncludeBaseForm}}
+
+Answers:
+- Provide **all correct answers** for each blank
+- If answers vary (e.g., gender or conjugation differences like "читав"/"читала"), list all for the same `exerciseId` and `position`. Make sure they are all valid answers for the same blank.
+
+Hints:
+{{#isIncludeHints}}- Provide helpful hints in {{userLanguage}}, but **never reveal the correct answer**
+- Include `evidence` field to indicate how obvious the hint is
+- Multiple hints per answer are allowed (e.g., one with evidence 30, one with 80){{/isIncludeHints}}
+{{^isIncludeHints}}- Do **not** include any hints for the answers{{/isIncludeHints}}
+
+Explanations:
+- Must be written in {{userLanguage}}
+- Explain grammar, vocabulary, or context behind the correct answer(s)
+
+</rules>
+
+<examples>
+{{#isIncludeBaseForm}}
+Example with Infinitive Form/Additional Context:
+"I like to ___(infinitive form or additional context here - it CAN NOT be the correct word (answer to the exercise), if it is a correct answer to the exercise, ignore it - do not add anything in parentheses after the blanks (___) in the exercise text.) in the morning."
+{{/isIncludeBaseForm}}
+{{^isIncludeBaseForm}}
+Example without Infinitive Form/Additional Context:
+"I like to ___ in the morning."
+{{/isIncludeBaseForm}}
+
+Multiple blanks:
 "I like to ___ in the morning and ___ in the evening."
 
-Use 'position' to indicate the answer for each blank, starting from zero.
-Make sure that exercises are relevant to the topic and difficulty level and the exercises are in the {{language}} language.
+Multiple correct answers:
+"Ти вчора ___ (читати) книжку?"
+Correct answers: `"читав"`, `"читала"` — both listed under the same `exerciseId` and `position`
 
-If there are multiple correct answers, provide them all - with the same 'exerciseId' and 'position' value.
-For example, in some languages, the verb conjugation may vary based on the subject, so provide all possible answers for the same exercise.
+</examples>
 
-Example: Ти вчора ___ (читати) книжку? - Correct answers are "читав", "читала" (for different subjects).
-
-{{^isIncludeBaseForm}}Do not {{/isIncludeBaseForm}}include infinitive form or additional context (in parentheses) in the exercises.
-{{#isIncludeHints}}Provide hints with different level of evidence (use 'evidence' field - values from 0 to 100 where 0 is less evident and 100 is completely evident) for each answer.
-There may be multiple hints for each answer. Make sure hints are in {{language}} language. Make sure to NOT provide final correct answer in the hint.{{/isIncludeHints}}
-{{^isIncludeHints}}Do not provide hints for the answers.{{/isIncludeHints}}
-
-Also, add explanation for each answer in {{language}} language.
-Make sure 'exerciseId' is unique for each exercise, starts from 0, and consistent across exercises/answers/hints.
-Be creative and generate a variety of exercises.
-MAKE SURE to NOT include the correct answer in the exercise text itself, especially after the blanks (___).
-Total exercises should be {{exerciseCount}}.
-
-Example of the exercise texts:
-- with base form: Ayer ___ (ir, yo) al cine. - only when it's not obvious who the subject is.
-- with base form: Ayer yo ___(ir) al cine. - no need to include the subject if it's obvious.
-- without base form: Ayer yo ___ al cine.
+<output_guidelines>
+- Generate exactly {{exerciseCount}} exercises
+- Ensure all exercise texts are in {{exerciseLanguage}}
+- Topic must clearly relate to {{topic}}
+- Difficulty must match {{level}}
+- Ensure creative variation across exercises
+- DO NOT repeat answer words or structures unnecessarily
+- DO NOT include the correct word in the sentence directly or after the blank
+- ALL 'exerciseId's and 'position's MUST start from zero (0)
+- Make sure all exercises/answers/hints are 100% VALID
+</output_guidelines>
