@@ -33,6 +33,30 @@ public class TextToSpeechService {
         this.openAiModel = openAiModel;
     }
 
+    public ByteArrayResource textToSpeech(String text, String instructions, double speed) throws IOException {
+        log.info("Generating speech for text: {}, instructions: {}, speed: {}", text, instructions, speed);
+        SpeechCreateParams build = SpeechCreateParams.builder()
+                .body(SpeechCreateParams.Body.builder()
+                        .input(text)
+                        .model(openAiModel)
+                        .voice(SpeechCreateParams.Voice.ALLOY)
+                        .build())
+                .responseFormat(SpeechCreateParams.ResponseFormat.MP3)
+                .instructions(instructions)
+                .speed(speed)
+                .build();
+
+        try (HttpResponse httpResponse = openAIClient.audio().speech().create(build)) {
+            byte[] bytes;
+            try (InputStream inputStream = httpResponse.body()) {
+                bytes = StreamUtils.copyToByteArray(inputStream);
+            }
+
+            log.info("Generated speech for text: {}, instructions: {}, speed: {}", text, instructions, speed);
+            return new ByteArrayResource(bytes);
+        }
+    }
+
     public TextToSpeechResponse textToSpeech(TextToSpeechRequest textToSpeechRequest) throws IOException {
         log.info("Generating speech for request: {}", textToSpeechRequest);
 
@@ -60,31 +84,8 @@ public class TextToSpeechService {
             String chunk = chunkRequests.get(chunkIndex);
             String name = String.format("%d-%d.mp3", textRequestIndex, chunkIndex);
 
-            SpeechCreateParams build = SpeechCreateParams.builder()
-                    .body(SpeechCreateParams.Body.builder()
-                            .input(chunk)
-                            .model(openAiModel)
-                            .voice(SpeechCreateParams.Voice.ALLOY)
-                            .build())
-                    .responseFormat(SpeechCreateParams.ResponseFormat.MP3)
-                    .instructions(textToSpeechRequest.getInstructions())
-                    .speed(textToSpeechRequest.getSpeed())
-                    .build();
-
-            HttpResponse httpResponse = openAIClient.audio().speech().create(build);
-
-            byte[] bytes;
-            try (InputStream inputStream = httpResponse.body()) {
-                bytes = StreamUtils.copyToByteArray(inputStream);
-            }
-
-            ByteArrayResource audioResource = new ByteArrayResource(bytes);
-            TextToSpeechTextChunkResponse chunkResponse = new TextToSpeechTextChunkResponse(
-                    name,
-                    chunk,
-                    audioResource
-            );
-            chunkResponses.add(chunkResponse);
+            ByteArrayResource resource = textToSpeech(chunk, textToSpeechRequest.getInstructions(), textToSpeechRequest.getSpeed());
+            chunkResponses.add(new TextToSpeechTextChunkResponse(name, chunk, resource));
         }
         return chunkResponses;
     }
