@@ -12,5 +12,7 @@ openai:
   api-key: ${OPENAI_API_KEY:}
   speech-to-text:
     model: ${OPENAI_SPEECH_TO_TEXT_MODEL:gpt-4o-mini-transcribe}
+  text-to-speech:
+    model: ${OPENAI_TEXT_TO_SPEECH_MODEL:gpt-4o-mini-tts}
   text:
     model: ${OPENAI_TEXT_MODEL:gpt-4o}
