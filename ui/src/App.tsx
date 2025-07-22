@@ -1,26 +1,18 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import './App.css';
-
-// Tooltip component
-const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({text, children}) => {
-    const [isVisible, setIsVisible] = useState(false);
-
-    return (
-        <div className="tooltip-container">
-            <div
-                onMouseEnter={() => setIsVisible(true)}
-                onMouseLeave={() => setIsVisible(false)}
-            >
-                {children}
-            </div>
-            {isVisible && (
-                <div className="tooltip">
-                    {text}
-                </div>
-            )}
-        </div>
-    );
-};
+import { ExerciseForm } from './components/ExerciseForm';
+import { Quiz } from './components/Quiz';
+import { Results } from './components/Results';
+import { HistorySidebar } from './components/HistorySidebar';
+import { FavoritesSidebar } from './components/FavoritesSidebar';
+import { 
+    saveGameToHistory, 
+    getGameHistory, 
+    deleteGameFromHistory,
+    getFavorites,
+    saveTemplateToFavorites,
+    deleteFavorite
+} from './utils/storage';
 
 const defaultForm: ExerciseRequest = {
     provider: 'OPENAI',
@@ -33,70 +25,8 @@ const defaultForm: ExerciseRequest = {
     includeHints: true,
 };
 
-// Game history functions
-const saveGameToHistory = (gameData: Omit<GameRecord, 'id' | 'timestamp'>) => {
-    const history = getGameHistory();
-    const newGame: GameRecord = {
-        ...gameData,
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-    };
-
-    const updatedHistory = [newGame, ...history].slice(0, 20); // Keep only last 20
-    localStorage.setItem('languageCoachHistory', JSON.stringify(updatedHistory));
-    return newGame;
-};
-
-const getGameHistory = (): GameRecord[] => {
-    try {
-        const history = localStorage.getItem('languageCoachHistory');
-        return history ? JSON.parse(history) : [];
-    } catch {
-        return [];
-    }
-};
-
-const deleteGameFromHistory = (id: string) => {
-    const history = getGameHistory();
-    const updatedHistory = history.filter(game => game.id !== id);
-    localStorage.setItem('languageCoachHistory', JSON.stringify(updatedHistory));
-    return updatedHistory;
-};
-
-// ---- Types ----
-interface TemplateRecord {
-    id: string;
-    timestamp: number;
-    formData: ExerciseRequest;
-}
-
-// ---- Favorite utils ----
-const getFavorites = (): TemplateRecord[] => {
-    try {
-        const fav = localStorage.getItem('languageCoachFavorites');
-        return fav ? JSON.parse(fav) : [];
-    } catch {
-        return [];
-    }
-};
-
-const saveTemplateToFavorites = (formData: ExerciseRequest): TemplateRecord => {
-    const favorites = getFavorites();
-    const newItem: TemplateRecord = {id: Date.now().toString(), timestamp: Date.now(), formData};
-    const updated = [newItem, ...favorites].slice(0, 30); // keep last 30
-    localStorage.setItem('languageCoachFavorites', JSON.stringify(updated));
-    return newItem;
-};
-
-const deleteFavorite = (id: string): TemplateRecord[] => {
-    const favorites = getFavorites();
-    const updated = favorites.filter(f => f.id !== id);
-    localStorage.setItem('languageCoachFavorites', JSON.stringify(updated));
-    return updated;
-};
-
 function App() {
-    const [step, setStep] = useState<'Form' | 'Quiz' | 'Results'>('Form');
+    const [step, setStep] = useState<AppStep>('Form');
     const [form, setForm] = useState<ExerciseRequest>(defaultForm);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -123,8 +53,7 @@ function App() {
     const [favoriteSearch, setFavoriteSearch] = useState('');
     const [lastSavedForm, setLastSavedForm] = useState<ExerciseRequest | null>(null);
 
-    // Refs for focusing inputs
-    const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
 
     // Load game history on component mount
     useEffect(() => {
@@ -266,7 +195,7 @@ function App() {
             if (blankIdx === totalBlanks - 1) {
                 handleNext();
             } else {
-                inputRefs.current[blankIdx + 1]?.focus();
+                // Focus handling moved to Quiz component
             }
         }
     };
@@ -284,9 +213,7 @@ function App() {
         if (currentIdx < exercises.length - 1) {
             setCurrentIdx(currentIdx + 1);
             setQuestionStart(Date.now());
-            setTimeout(() => {
-                inputRefs.current[0]?.focus();
-            }, 0);
+            // Focus handling moved to Quiz component
         } else {
             // Quiz finished, save to history
             const totalTime = timings.reduce((a, b) => a + (b || 0), 0) + (questionStart ? (Date.now() - questionStart) / 1000 : 0);
@@ -451,42 +378,7 @@ function App() {
         avgTime = timings.length ? totalTime / timings.length : 0;
     }
 
-    // Render quiz text with inline blanks
-    function renderQuizTextWithInputs(text: string, blanks: string[], onChange: (i: number, v: string) => void, onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, i: number, total: number) => void) {
-        const parts = text.split(/(___)/g);
-        let blankIdx = 0;
-        return parts.map((part, idx) => {
-            if (part === '___') {
-                const currentBlankIdx = blankIdx;
-                blankIdx++;
-                return (
-                    <input
-                        key={idx}
-                        ref={el => {
-                            inputRefs.current[currentBlankIdx] = el;
-                        }}
-                        type="text"
-                        className="inline-blank"
-                        value={blanks[currentBlankIdx] || ''}
-                        onChange={e => onChange(currentBlankIdx, e.target.value)}
-                        onKeyDown={e => onKeyDown(e, currentBlankIdx, blanks.length)}
-                        style={{width: '4em', margin: '0 0.2em', display: 'inline-block', textAlign: 'center'}}
-                        autoFocus={currentBlankIdx === 0}
-                    />
-                );
-            }
-            return <span key={idx}>{part}</span>;
-        });
-    }
 
-    // Focus first blank on question change
-    useEffect(() => {
-        if (step === 'Quiz') {
-            setTimeout(() => {
-                inputRefs.current[0]?.focus();
-            }, 0);
-        }
-    }, [step, currentIdx]);
 
     // Render
     const appWithSidebar = showHistory || showFavorites ? 'with-sidebar' : '';
@@ -494,85 +386,25 @@ function App() {
     return (
         <div className={`App ${appWithSidebar}`}>
             {/* Favorites Toggle */}
-            {/* History Sidebar */}
-            {showHistory && (
-                <div className="history-sidebar">
-                    <div className="sidebar-header">
-                        <h3>Game History</h3>
-                        <button onClick={() => setShowHistory(false)} className="close-sidebar">×</button>
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Search games..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="search-input"
-                    />
-                    <div className="history-list">
-                        {filteredHistory.map((game) => (
-                            <div
-                                key={game.id}
-                                className="history-item"
-                                onClick={() => viewHistoricalGame(game)}
-                            >
-                                <div className="history-item-title">
-                                    {game.formData.exerciseLanguage} - {game.formData.difficulty}
-                                </div>
-                                <div className="history-item-details">
-                                    Topic: {game.formData.topic || 'General'}
-                                </div>
-                                <div className="history-item-score">
-                                    Score: {game.score}/{game.totalBlanks || game.exercises.reduce((total, ex) => total + (ex.text.match(/___/g) || []).length, 0)}
-                                </div>
-                                <div className="history-item-date">
-                                    {new Date(game.timestamp).toLocaleDateString()}
-                                </div>
-                                <div className="history-item-actions">
-                                    <button
-                                        className="delete-history-btn"
-                                        onClick={(e) => handleDeleteHistory(e, game.id)}
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <HistorySidebar
+                isVisible={showHistory}
+                onClose={() => setShowHistory(false)}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                filteredHistory={filteredHistory}
+                onViewGame={viewHistoricalGame}
+                onDeleteGame={handleDeleteHistory}
+            />
 
-            {/* Favorites Sidebar */}
-            {showFavorites && (
-                <div className="history-sidebar">
-                    <div className="sidebar-header">
-                        <h3>Favorite Templates</h3>
-                        <button onClick={() => setShowFavorites(false)} className="close-sidebar">×</button>
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Search favorites..."
-                        value={favoriteSearch}
-                        onChange={(e) => setFavoriteSearch(e.target.value)}
-                        className="search-input"
-                    />
-                    <div className="history-list">
-                        {filteredFavorites.map(fav => (
-                            <div key={fav.id} className="history-item" onClick={() => handleLoadFavorite(fav)}>
-                                <div className="history-item-title">
-                                    {fav.formData.exerciseLanguage} - {fav.formData.difficulty}
-                                </div>
-                                <div className="history-item-details">Topic: {fav.formData.topic || 'General'}</div>
-                                <div className="history-item-date">{new Date(fav.timestamp).toLocaleDateString()}</div>
-                                <div className="history-item-actions">
-                                    <button className="delete-history-btn"
-                                            onClick={(e) => handleDeleteFavorite(e, fav.id)}>×
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <FavoritesSidebar
+                isVisible={showFavorites}
+                onClose={() => setShowFavorites(false)}
+                searchTerm={favoriteSearch}
+                onSearchChange={setFavoriteSearch}
+                filteredFavorites={filteredFavorites}
+                onLoadFavorite={handleLoadFavorite}
+                onDeleteFavorite={handleDeleteFavorite}
+            />
 
             {/* Main Content */}
             <div className="main-content">
@@ -601,326 +433,48 @@ function App() {
                 <h1>Language Coach</h1>
 
                 {step === 'Form' && (
-                    <form className="exercise-form card" onSubmit={handleFormSubmit}>
-                        <div className="form-section">
-                            <label>
-                                <div className="label-with-tooltip">
-                                    Provider:
-                                    <Tooltip
-                                        text="Choose the AI provider to generate exercises. GROQ is faster, OpenAI may provide more varied content.">
-                                        <span className="tooltip-trigger">?</span>
-                                    </Tooltip>
-                                </div>
-                                <select name="provider" value={form.provider} onChange={handleFormChange}>
-                                    <option value="GROQ">GROQ</option>
-                                    <option value="OPENAI">OPENAI</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div className="form-section">
-                            <label>
-                                <div className="label-with-tooltip">
-                                    Exercise Language:
-                                    <Tooltip text="The language you want to practice (e.g., Spanish, French, German).">
-                                        <span className="tooltip-trigger">?</span>
-                                    </Tooltip>
-                                </div>
-                                <input name="exerciseLanguage" value={form.exerciseLanguage} onChange={handleFormChange}
-                                       required/>
-                            </label>
-                        </div>
-
-                        <div className="form-section">
-                            <label>
-                                <div className="label-with-tooltip">
-                                    User Language:
-                                    <Tooltip
-                                        text="Your native language or the language for explanations and hints (e.g., English, Portuguese).">
-                                        <span className="tooltip-trigger">?</span>
-                                    </Tooltip>
-                                </div>
-                                <input name="userLanguage" value={form.userLanguage} onChange={handleFormChange}
-                                       required/>
-                            </label>
-                        </div>
-
-                        <div className="form-section">
-                            <label>
-                                <div className="label-with-tooltip">
-                                    Topic:
-                                    <Tooltip
-                                        text="Specific topic or theme for exercises (e.g., 'travel', 'food', 'business'). Leave empty for general exercises.">
-                                        <span className="tooltip-trigger">?</span>
-                                    </Tooltip>
-                                </div>
-                                <input name="topic" value={form.topic} onChange={handleFormChange}
-                                       placeholder="Optional"/>
-                            </label>
-                        </div>
-
-                        <div className="form-section">
-                            <label>
-                                <div className="label-with-tooltip">
-                                    Total Exercises:
-                                    <Tooltip text="Number of fill-in-the-blank exercises to generate (1-50).">
-                                        <span className="tooltip-trigger">?</span>
-                                    </Tooltip>
-                                </div>
-                                <input name="total" type="number" min={1} max={50} value={form.total}
-                                       onChange={handleFormChange} required/>
-                            </label>
-                        </div>
-
-                        <div className="form-section">
-                            <label>
-                                <div className="label-with-tooltip">
-                                    Difficulty:
-                                    <Tooltip
-                                        text="Language proficiency level based on CEFR standards. A1 is beginner, C2 is near-native proficiency.">
-                                        <span className="tooltip-trigger">?</span>
-                                    </Tooltip>
-                                </div>
-                                <select name="difficulty" value={form.difficulty} onChange={handleFormChange}>
-                                    <option value="A1">A1 - Beginner</option>
-                                    <option value="A2">A2 - Elementary</option>
-                                    <option value="B1">B1 - Intermediate</option>
-                                    <option value="B2">B2 - Upper Intermediate</option>
-                                    <option value="C1">C1 - Advanced</option>
-                                    <option value="C2">C2 - Proficiency</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <div className="form-section">
-                            <div className="form-section-title">
-                                Options
-                                <Tooltip text="Additional features to enhance your learning experience.">
-                                    <span className="tooltip-trigger">?</span>
-                                </Tooltip>
-                            </div>
-                            <div className="checkbox-row">
-                                <label className="checkbox-item">
-                                    <input name="includeBaseForm" type="checkbox" checked={form.includeBaseForm}
-                                           onChange={handleFormChange}/>
-                                    <div className="checkbox-label-with-tooltip">
-                                        Include Base Form
-                                        <Tooltip
-                                            text="Show the infinitive or base form of verbs in exercises (helpful for learning verb conjugations).">
-                                            <span className="tooltip-trigger">?</span>
-                                        </Tooltip>
-                                    </div>
-                                </label>
-                                <label className="checkbox-item">
-                                    <input name="includeHints" type="checkbox" checked={form.includeHints}
-                                           onChange={handleFormChange}/>
-                                    <div className="checkbox-label-with-tooltip">
-                                        Include Hints
-                                        <Tooltip
-                                            text="Provide progressive hints during exercises to help you when you're stuck.">
-                                            <span className="tooltip-trigger">?</span>
-                                        </Tooltip>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="button-row">
-                            <button
-                                type="button"
-                                onClick={handleSaveFavorite}
-                                disabled={isSaveDisabled}
-                                className={isSaveDisabled ? 'saved-button' : 'save-button'}
-                            >
-                                {saveButtonText}
-                            </button>
-                            <button type="submit" disabled={loading}>
-                                {loading ? 'Generating...' : 'Generate Exercises'}
-                            </button>
-                        </div>
-                        {loading &&
-                            <div style={{color: '#667eea', textAlign: 'center', marginTop: '1rem'}}>Creating your
-                                personalized exercises...</div>}
-                        {error && <div style={{color: '#f44336', textAlign: 'center', marginTop: '1rem'}}>{error}</div>}
-                    </form>
+                    <ExerciseForm
+                        form={form}
+                        loading={loading}
+                        error={error}
+                        onFormChange={handleFormChange}
+                        onFormSubmit={handleFormSubmit}
+                        onSaveFavorite={handleSaveFavorite}
+                        isSaveDisabled={isSaveDisabled}
+                        saveButtonText={saveButtonText}
+                    />
                 )}
 
                 {step === 'Quiz' && exercises.length > 0 && (
-                    <div className="quiz">
-                        <h2>Exercise {currentIdx + 1} of {exercises.length}</h2>
-                        <div className="exercise-text" style={{marginBottom: 24}}>
-                            {renderQuizTextWithInputs(
-                                exercises[currentIdx].text,
-                                userAnswers[currentIdx] || [],
-                                handleBlankChange,
-                                handleBlankKeyDown
-                            )}
-                        </div>
-
-                        {/* Hints Section */}
-                        {form.includeHints && getCurrentExerciseHints().length > 0 && (
-                            <div style={{marginTop: 16, width: '100%', maxWidth: 500}}>
-                                {getVisibleHints().map((hint: any, idx: number) => (
-                                    <div key={hint.evidence} className="hint" style={{marginBottom: 8}}>
-                                        <strong>Hint {idx + 1}:</strong> {hint.hint}
-                                    </div>
-                                ))}
-                                {showHints.length < getCurrentExerciseHints().length && (
-                                    <button
-                                        type="button"
-                                        onClick={handleShowNextHint}
-                                        style={{
-                                            background: 'rgba(251, 191, 36, 0.2)',
-                                            border: '1px solid rgba(251, 191, 36, 0.3)',
-                                            color: '#fbbf24',
-                                            borderRadius: '8px',
-                                            padding: '0.5rem 1rem',
-                                            cursor: 'pointer',
-                                            fontSize: '0.9rem'
-                                        }}
-                                    >
-                                        Show Next Hint ({showHints.length + 1}/{getCurrentExerciseHints().length})
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
-                        <button type="button" onClick={handleNext} style={{marginTop: 16}}>
-                            {currentIdx === exercises.length - 1 ? 'Finish Quiz' : 'Next'}
-                        </button>
-                    </div>
+                    <Quiz
+                        exercises={exercises}
+                        currentIdx={currentIdx}
+                        userAnswers={userAnswers}
+                        showHints={showHints}
+                        hints={hints}
+                        form={form}
+                        onBlankChange={handleBlankChange}
+                        onBlankKeyDown={handleBlankKeyDown}
+                        onNext={handleNext}
+                        onShowNextHint={handleShowNextHint}
+                        getCurrentExerciseHints={getCurrentExerciseHints}
+                        getVisibleHints={getVisibleHints}
+                    />
                 )}
 
-                {/* Results section stays the same */}
                 {step === 'Results' && (
-                    <div className="results">
-                        <h2>{viewingHistoricalGame ? 'Historical Game Results' : 'Results'}</h2>
-
-                        {/* Main Score and Time Stats */}
-                        <div className="results-summary">
-                            <div className="stat-card">
-                                <div className="stat-value">{score} / {totalBlanks}</div>
-                                <div className="stat-label">Score</div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-value">{totalTime.toFixed(1)}s</div>
-                                <div className="stat-label">Total Time</div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-value">{avgTime.toFixed(1)}s</div>
-                                <div className="stat-label">Avg per Question</div>
-                            </div>
-                        </div>
-
-                        {viewingHistoricalGame && (
-                            <div className="game-info">
-                                <p><strong>Language:</strong> {viewingHistoricalGame.formData.exerciseLanguage}</p>
-                                <p><strong>Difficulty:</strong> {viewingHistoricalGame.formData.difficulty}</p>
-                                <p><strong>Topic:</strong> {viewingHistoricalGame.formData.topic || 'General'}</p>
-                                <p><strong>Date:</strong> {new Date(viewingHistoricalGame.timestamp).toLocaleString()}
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="result-list">
-                            {currentGameData.exercises?.map((ex: any, exIdx: number) => {
-                                // Group answers by position to handle multiple correct answers
-                                const allExAnswers = currentGameData.answers?.filter((a: any) => a.exerciseId === ex.exerciseId) || [];
-                                const answersByPosition: Record<number, any[]> = {};
-                                allExAnswers.forEach((a: any) => {
-                                    if (!answersByPosition[a.position]) answersByPosition[a.position] = [];
-                                    answersByPosition[a.position].push(a);
-                                });
-                                
-                                const userAnsArr = currentGameData.userAnswers?.[exIdx] || [];
-                                const positions = Object.keys(answersByPosition).map(Number).sort();
-                                
-                                return (
-                                    <div key={ex.exerciseId} className="result-exercise" style={{
-                                        marginBottom: 16,
-                                        padding: 16,
-                                        background: 'rgba(15, 23, 42, 0.5)',
-                                        borderRadius: 12,
-                                        border: '1px solid rgba(148, 163, 184, 0.2)'
-                                    }}>
-                                        <div style={{
-                                            marginBottom: 12,
-                                            fontWeight: 600,
-                                            fontSize: '1.05rem',
-                                            color: '#f1f5f9'
-                                        }}>{ex.text}</div>
-                                        <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                                            {positions.map((position: number) => {
-                                                const userAns = userAnsArr[position] || '';
-                                                const possibleAnswers = answersByPosition[position];
-                                                const isCorrect = possibleAnswers.some((ans: any) =>
-                                                    userAns.trim().toLowerCase() === ans.answer.trim().toLowerCase()
-                                                );
-
-                                                // Get all unique correct answers and explanations
-                                                const correctAnswers = [...new Set(possibleAnswers.map((a: any) => a.answer))];
-                                                const explanations = possibleAnswers.filter((a: any) => a.explanation).map((a: any) => a.explanation);
-                                                
-                                                return (
-                                                    <div key={position}>
-                                                        <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-                                                            <span style={{
-                                                                minWidth: 60,
-                                                                fontWeight: 500
-                                                            }}>Blank {position + 1}:</span>
-                                                            <span style={{
-                                                                color: isCorrect ? '#4caf50' : '#f44336',
-                                                                fontWeight: 600,
-                                                                borderBottom: '1.5px solid',
-                                                                borderColor: isCorrect ? '#4caf50' : '#f44336',
-                                                                background: '#181818',
-                                                                padding: '2px 8px',
-                                                                borderRadius: 6,
-                                                                minWidth: 60,
-                                                                display: 'inline-block',
-                                                            }}>{userAns ||
-                                                                <span style={{color: '#888'}}>No answer</span>}</span>
-                                                            <span style={{color: '#888', fontSize: 13}}>
-                                                                {isCorrect ?
-                                                                    (correctAnswers.length > 1 ? 'Correct (all valid: ' : 'Correct') :
-                                                                    'Correct: '
-                                                                }
-                                                                {((!isCorrect) || (isCorrect && correctAnswers.length > 1)) && (
-                                                                    <span style={{
-                                                                        color: '#fff',
-                                                                        fontWeight: 500
-                                                                    }}>
-                                                                        {correctAnswers.length > 1
-                                                                            ? correctAnswers.join(' / ')
-                                                                            : correctAnswers[0]
-                                                                        }
-                                                                    </span>
-                                                                )}
-                                                                {isCorrect && correctAnswers.length > 1 && (
-                                                                    <span style={{color: '#888'}}>)</span>
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                        {explanations.length > 0 && (
-                                                            <div style={{marginTop: 8, fontSize: 14, color: '#ffe082'}}>
-                                                                {explanations[0]} {/* Show first explanation, could be improved to show all unique ones */}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <button onClick={() => {
+                    <Results
+                        viewingHistoricalGame={viewingHistoricalGame}
+                        currentGameData={currentGameData}
+                        score={score}
+                        totalBlanks={totalBlanks}
+                        totalTime={totalTime}
+                        avgTime={avgTime}
+                        onStartOver={() => {
                             setStep('Form');
                             setViewingHistoricalGame(null);
-                        }}>
-                            {viewingHistoricalGame ? 'Back to Form' : 'Start Over'}
-                        </button>
-                    </div>
+                        }}
+                    />
                 )}
             </div>
         </div>

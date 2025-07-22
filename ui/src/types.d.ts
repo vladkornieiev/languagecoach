@@ -12,6 +12,12 @@ interface ExerciseRequest {
     includeHints: boolean;
 }
 
+interface TemplateRecord {
+    id: string;
+    timestamp: number;
+    formData: ExerciseRequest;
+}
+
 interface GameRecord {
     id: string;
     timestamp: number;
@@ -25,4 +31,6 @@ interface GameRecord {
     totalTime: number;
     avgTime: number;
     totalBlanks?: number;
-} 
+}
+
+type AppStep = 'Form' | 'Quiz' | 'Results'; 

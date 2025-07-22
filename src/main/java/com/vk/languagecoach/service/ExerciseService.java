@@ -56,7 +56,7 @@ public class ExerciseService {
         StructuredChatCompletionCreateParams<Exercises> createParams = ChatCompletionCreateParams.builder()
                 .addUserMessage(writer.toString())
                 .responseFormat(Exercises.class)
-                .temperature(1)
+                .temperature(1.75)
                 .topP(0.95)
                 .model(model)
                 .build();
