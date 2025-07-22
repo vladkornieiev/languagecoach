@@ -192,11 +192,52 @@ function App() {
                 throw new Error('Failed to generate exercises');
             }
             const data = await response.json();
-            setExercises(data.exercises || []);
-            setAnswers(data.answers || []);
-            setHints(data.hints || []);
+            
+            // Transform the new unified response format to the old format
+            const exercises: any[] = [];
+            const answers: any[] = [];
+            const hints: any[] = [];
+            
+            if (Array.isArray(data)) {
+                data.forEach((exercise, index) => {
+                    const exerciseId = index;
+                    
+                    // Add exercise with exerciseId
+                    exercises.push({
+                        exerciseId,
+                        text: exercise.text
+                    });
+                    
+                    // Flatten answers with exerciseId reference
+                    if (exercise.answers) {
+                        exercise.answers.forEach((answer: any) => {
+                            answers.push({
+                                exerciseId,
+                                position: answer.position,
+                                answer: answer.answer,
+                                explanation: answer.explanation
+                            });
+                        });
+                    }
+                    
+                    // Flatten hints with exerciseId reference
+                    if (exercise.hints) {
+                        exercise.hints.forEach((hint: any) => {
+                            hints.push({
+                                exerciseId,
+                                evidence: hint.evidence,
+                                hint: hint.hint
+                            });
+                        });
+                    }
+                });
+            }
+            
+            setExercises(exercises);
+            setAnswers(answers);
+            setHints(hints);
             // Initialize userAnswers: one array per exercise, with N blanks (count ___)
-            const blanksPerExercise = (data.exercises || []).map((ex: any) => {
+            const blanksPerExercise = exercises.map((ex: any) => {
                 const count = (ex.text.match(/___/g) || []).length;
                 return Array.from({length: count}, () => '');
             });
