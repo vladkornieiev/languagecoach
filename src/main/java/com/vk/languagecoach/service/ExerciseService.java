@@ -41,7 +41,8 @@ public class ExerciseService {
         log.info("Generating exercises for request: {}", exerciseRequest);
 
         Map<String, Object> params = new HashMap<>();
-        params.put("language", exerciseRequest.getExerciseLanguage());
+        params.put("exerciseLanguage", exerciseRequest.getExerciseLanguage());
+        params.put("userLanguage", exerciseRequest.getUserLanguage());
         params.put("topic", exerciseRequest.getTopic());
         params.put("level", exerciseRequest.getDifficulty());
         params.put("isIncludeBaseForm", exerciseRequest.isIncludeBaseForm());
