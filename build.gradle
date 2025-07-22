@@ -30,6 +30,7 @@ dependencies {
 
     implementation "com.openai:openai-java:2.16.0"
     implementation 'com.squareup.okhttp3:okhttp:5.1.0'
+    implementation 'com.github.spullara.mustache.java:compiler:0.9.10'
 
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.h2database:h2'
