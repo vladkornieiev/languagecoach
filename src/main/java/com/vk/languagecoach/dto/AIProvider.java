@@ -13,4 +13,9 @@ public enum AIProvider {
             throw new IllegalArgumentException("Unknown provider: " + provider);
         }
     }
+
+    @Override
+    public String toString() {
+        return name().toLowerCase();
+    }
 }

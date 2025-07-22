@@ -5,6 +5,7 @@ import com.openai.models.audio.transcriptions.Transcription;
 import com.openai.models.audio.transcriptions.TranscriptionCreateParams;
 import com.vk.languagecoach.dto.AIProvider;
 import com.vk.languagecoach.dto.response.SpeechToTextResponse;
+import com.vk.languagecoach.service.ai.AIService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -12,26 +13,28 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.vk.languagecoach.dto.AIProvider.GROQ;
 
 @Service
 public class SpeechToTextService {
 
-    private final OpenAIClient openAIClient;
-    private final OpenAIClient groqClient;
-    private final String groqModel;
-    private final String openAiModel;
+    private final Map<AIProvider, AIService> aiClients;
+    private final Map<AIProvider, String> models = new HashMap<>();
 
-    public SpeechToTextService(@Qualifier("openAIClient") OpenAIClient openAIClient,
-                               @Qualifier("groqClient") OpenAIClient groqClient,
+    public SpeechToTextService(List<AIService> aiServices,
                                @Value("${groq.speech-to-text.model}") String groqModel,
                                @Value("${openai.speech-to-text.model}") String openAiModel) {
-        this.openAIClient = openAIClient;
-        this.groqClient = groqClient;
-        this.groqModel = groqModel;
-        this.openAiModel = openAiModel;
+        this.aiClients = aiServices.stream()
+                .collect(Collectors.toMap(AIService::getName, Function.identity()));
+        this.models.put(AIProvider.GROQ, groqModel);
+        this.models.put(AIProvider.OPENAI, openAiModel);
     }
 
     public SpeechToTextResponse speechToText(MultipartFile file, String language, AIProvider provider) throws IOException {
@@ -39,14 +42,22 @@ public class SpeechToTextService {
         try {
             file.transferTo(tempFile.toPath());
 
-            String model = provider == GROQ ? groqModel : openAiModel;
-            OpenAIClient client = provider == GROQ ? groqClient : openAIClient;
+            AIService aiService = aiClients.get(provider);
+            if (aiService == null) {
+                throw new IllegalArgumentException("Unsupported AI provider: " + provider);
+            }
+
+            String model = models.get(provider);
+            if (model == null) {
+                throw new IllegalArgumentException("Model not configured for provider: " + provider);
+            }
 
             TranscriptionCreateParams createParams = TranscriptionCreateParams.builder()
                     .file(tempFile.toPath())
                     .model(model)
                     .build();
-            Transcription transcription = client.audio().transcriptions().create(createParams).asTranscription();
+            Transcription transcription = aiService.getClient()
+                    .audio().transcriptions().create(createParams).asTranscription();
 
             return SpeechToTextResponse.builder()
                     .language(language)
