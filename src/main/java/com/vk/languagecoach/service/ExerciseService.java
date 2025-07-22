@@ -1,6 +1,8 @@
 package com.vk.languagecoach.service;
 
-import com.openai.client.OpenAIClient;
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.StructuredChatCompletion;
 import com.openai.models.chat.completions.StructuredChatCompletionCreateParams;
@@ -9,10 +11,12 @@ import com.vk.languagecoach.dto.AIProvider;
 import com.vk.languagecoach.dto.request.ExerciseRequest;
 import com.vk.languagecoach.dto.response.ExercisesResponse;
 import com.vk.languagecoach.service.ai.AIService;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,7 @@ public class ExerciseService {
 
     private final Map<AIProvider, AIService> aiClients;
     private final Map<AIProvider, String> models = new HashMap<>();
+    private Mustache promptTemplate;
 
     public ExerciseService(List<AIService> aiServices,
                            @Value("${groq.text.model}") String groqModel,
@@ -33,6 +38,12 @@ public class ExerciseService {
                 .collect(Collectors.toMap(AIService::getName, Function.identity()));
         this.models.put(AIProvider.GROQ, groqModel);
         this.models.put(AIProvider.OPENAI, openAiModel);
+    }
+
+    @PostConstruct
+    public void loadPromptTemplate() {
+        MustacheFactory mustacheFactory = new DefaultMustacheFactory();
+        this.promptTemplate = mustacheFactory.compile("prompts/exercises.mustache");
     }
 
     public ExercisesResponse generateExercises(ExerciseRequest exerciseRequest) {
@@ -47,61 +58,30 @@ public class ExerciseService {
             throw new IllegalArgumentException("Model not configured for provider: " + exerciseRequest.getProvider());
         }
 
-        String baseForm = exerciseRequest.isIncludeBaseForm() ? """
-                (infinitive form or additional context here - it CAN NOT be the correct word (answer to the exercise),
-                if it is a correct answer to the exercise,
-                ignore it - do not add anything in parentheses after the blanks (___) in the exercise text.")
-                """ : "";
-        String prompt = """
-                I want to practice my %s language skills. Please generate exercises/phrases with empty spaces (___) to fill in.
-                Exercises topic is: %s.
-                The exercises should be suitable for a %s level learner. Example of the exercise:
-                "I like to ___%s in the morning."
-                The phrase/sentence may contain multiple blanks (especially for higher difficulty levels). For example:
-                "I like to ___ in the morning and ___ in the evening."
-                Use 'position' to indicate the answer for each blank, starting from zero.
-                Make sure that exercises are relevant to the topic and difficulty level and the exercises are in the %s language.
-                If there are multiple correct answers, provide them all - with the same 'exerciseId' and 'position' value. 
-                For example, in some languages, the verb conjugation may vary based on the subject, so provide all possible answers for the same exercise.
-                Example: Ти вчора ___ (читати) книжку? - Correct answers are "читав", "читала" (for different subjects). 
-                %s
-                %s
-                Also, add explanation for each answer in %s language.
-                Make sure 'exerciseId' is unique for each exercise, starts from 0, and consistent across exercises/answers/hints.
-                Be creative and generate a variety of exercises.
-                MAKE SURE to NOT include the correct answer in the exercise text itself, especially after the blanks (___).
-                Total exercises should be %d.
-                
-                Example of the exercise texts:
-                - with base form: Ayer ___ (ir, yo) al cine. - only when it's not obvious who the subject is.
-                - with base form: Ayer yo ___(ir) al cine. - no need to include the subject if it's obvious.
-                - without base form: Ayer yo ___ al cine.
-                """.formatted(
-                exerciseRequest.getExerciseLanguage(),
-                exerciseRequest.getTopic(),
-                exerciseRequest.getDifficulty(),
-                baseForm,
-                exerciseRequest.getExerciseLanguage(),
-                exerciseRequest.isIncludeBaseForm() ? "Include infinitive form or additional context (in parentheses) in the exercises." : "Do not include infinitive form or additional context (in parentheses) in the exercises.",
-                exerciseRequest.isIncludeHints() ?
-                        "Provide hints with different level of evidence (use 'evidence' field - values from 0 to 100 where 0 is less evident and 100 is completely evident) for each answer. There may be multiple hints for each answer. Make sure hints are in %s language. Make sure to NOT provide final correct answer in the hint".formatted(exerciseRequest.getUserLanguage()) :
-                        "Do not provide hints for the answers.",
-                exerciseRequest.getUserLanguage(),
-                exerciseRequest.getTotal()
-        );
+        Map<String, Object> params = new HashMap<>();
+        params.put("language", exerciseRequest.getExerciseLanguage());
+        params.put("topic", exerciseRequest.getTopic());
+        params.put("level", exerciseRequest.getDifficulty());
+        params.put("isIncludeBaseForm", exerciseRequest.isIncludeBaseForm());
+        params.put("isIncludeHints", exerciseRequest.isIncludeHints());
+        params.put("exerciseCount", exerciseRequest.getTotal());
+
+        StringWriter writer = new StringWriter();
+        promptTemplate.execute(writer, params);
+
         StructuredChatCompletionCreateParams<ExercisesResponse> createParams = ChatCompletionCreateParams.builder()
-                .addUserMessage(prompt)
+                .addUserMessage(writer.toString())
                 .responseFormat(ExercisesResponse.class)
-                .temperature(1.75)
+                .temperature(1)
                 .topP(0.95)
                 .model(model)
                 .build();
 
         StructuredChatCompletion<ExercisesResponse> exercisesResponseStructuredChatCompletion =
                 aiService.getClient()
-                .chat()
-                .completions()
-                .create(createParams);
+                        .chat()
+                        .completions()
+                        .create(createParams);
 
         CompletionUsage usage = exercisesResponseStructuredChatCompletion.rawChatCompletion().usage().get();
         long completionTokens = usage.completionTokens();
