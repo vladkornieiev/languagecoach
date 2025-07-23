@@ -1,0 +1,15 @@
+Convert these sentences to fill-in-the-blank exercises in {{exerciseLanguage}}:
+
+<input>
+{{input}}
+</input>
+
+Use ___ to indicate blanks in the sentences. Each blank should have a corresponding answer, and if applicable, a hint in {{userLanguage}}.
+
+Ensure the output follows these rules:
+- Each sentence must contain at least one blank (___), there might be multiple blanks in a single sentence. Make sure to not remove extra words to not loose the meaning and context of the sentence.
+- Make sure that the sentences are understandable and grammatically correct even with the blanks.
+- Provide all valid answers in {{exerciseLanguage}} for each blank, including variations if applicable. For example, "читав" and "читала" should be listed under the same `exerciseId` and `position`. Make sure the form is correct, for example, for "Вчор він ___ книжку" the answer should be "читав" (because it's the only correct option for 'he') and the 'baseForm' should be "читати".
+- Provide explanations for each correct answer in {{userLanguage}}
+- If the answer is a verb in some form, add it's infinitive(base) form to 'baseForm' field. It must just one word, for example, not "haber sabido", but "saber".
+- Add position index (starting from 0) to each blank in the sentence, so that it can be used to identify the blank in the sentence.

@@ -3,7 +3,6 @@ package com.vk.languagecoach.controller;
 import com.vk.languagecoach.dto.request.ExerciseRequest;
 import com.vk.languagecoach.dto.response.ExerciseResponse;
 import com.vk.languagecoach.mapper.ExerciseMapper;
-import com.vk.languagecoach.model.Exercises;
 import com.vk.languagecoach.service.ExerciseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +24,7 @@ public class ExerciseController {
 
     @PostMapping
     public ResponseEntity<List<ExerciseResponse>> generateExercises(@RequestBody ExerciseRequest exerciseRequest) {
-        Exercises exercises = exerciseService.generateExercises(exerciseRequest);
-        return ResponseEntity.ok(exerciseMapper.mapToExerciseResponses(exercises));
+        var exercises = exerciseService.generateExercises(exerciseRequest);
+        return ResponseEntity.ok(exerciseMapper.mapToExerciseResponses(exerciseRequest, exercises));
     }
 }
