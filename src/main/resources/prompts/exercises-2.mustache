@@ -1,4 +1,4 @@
-Convert these sentences to fill-in-the-blank exercises in {{exerciseLanguage}}:
+Convert these sentences to fill-in-the-blank exercises in {{exerciseLanguage}} for the topic "{{topic}}" at level "{{level}}".
 
 <input>
 {{input}}
@@ -12,4 +12,6 @@ Ensure the output follows these rules:
 - Provide all valid answers in {{exerciseLanguage}} for each blank, including variations if applicable. For example, "читав" and "читала" should be listed under the same `exerciseId` and `position`. Make sure the form is correct, for example, for "Вчор він ___ книжку" the answer should be "читав" (because it's the only correct option for 'he') and the 'baseForm' should be "читати".
 - Provide explanations for each correct answer in {{userLanguage}}
 - If the answer is a verb in some form, add it's infinitive(base) form to 'baseForm' field. It must just one word, for example, not "haber sabido", but "saber".
+- Make sure the subject is clear in the sentence, so that the learner can easily identify who is performing the action. If not, change the sentence to make it clear. If it's already clear, do not change it.
+- Do not replace words that are not related to the topic "{{topic}}" or are not suitable for the level {{level}}.
 - Add position index (starting from 0) to each blank in the sentence, so that it can be used to identify the blank in the sentence.

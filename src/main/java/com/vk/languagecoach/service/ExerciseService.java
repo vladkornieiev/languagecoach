@@ -110,6 +110,8 @@ public class ExerciseService {
                 .addUserMessage(writer1.toString())
                 .responseFormat(ExercisesStep1.class)
                 .model(aiServiceProvider.getModel(exerciseRequest.getProvider(), TEXT))
+                .temperature(1.5)
+                .topP(0.95)
                 .build();
 
         StructuredChatCompletion<ExercisesStep1> completion1 = aiServiceProvider.getClient(exerciseRequest.getProvider())
